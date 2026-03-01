@@ -44,7 +44,6 @@ import { OrderManager } from './components/OrderManager';
 import BulkUserManager from './components/BulkUserManager';
 import { BulkProductManager } from './components/BulkProductManager';
 import { BulkOrderManager } from './components/BulkOrderManager';
-import { BulkUserTester } from './components/BulkUserTester';
 import { BaseMasterManager } from './components/BaseMasterManager';
 import { BulkMasterProductManager } from './components/BulkMasterProductManager';
 import { NotificationDropdown } from './components/NotificationDropdown';
@@ -112,7 +111,6 @@ const AppContent: React.FC = () => {
         { id: 'bulk-users', label: 'Bulk Users', icon: Users },
         { id: 'bulk-products', label: 'Bulk Specs', icon: Box },
         { id: 'bulk-orders', label: 'Bulk Orders', icon: Package },
-        { id: 'bulk-test', label: 'Bulk Simulator', icon: ShoppingCart },
         { id: 'bulk-masters', label: 'Base Master', icon: Layers },
         { id: 'bulk-master-products', label: 'Product Masters', icon: Layers },
       ]
@@ -300,8 +298,6 @@ const AppContent: React.FC = () => {
           {currentView === 'bulk-products' && <BulkProductManager />}
           
           {currentView === 'bulk-orders' && <BulkOrderManager />}
-
-          {currentView === 'bulk-test' && <BulkUserTester />}
 
           {currentView === 'bulk-masters' && <BaseMasterManager />}
 
