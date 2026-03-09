@@ -271,7 +271,7 @@ export interface CouponValidationResponse {
   newTotal: number;
 }
 
-export type ViewState = 'dashboard' | 'products' | 'categories' | 'filters' | 'inventory' | 'product-wizard' | 'out-stock' | 'stock-thresholds' | 'stock-reminders' | 'contacts' | 'coupons' | 'orders' | 'bulk-users' | 'bulk-products' | 'bulk-orders' | 'bulk-masters' | 'bulk-master-products';
+export type ViewState = 'dashboard' | 'products' | 'categories' | 'filters' | 'inventory' | 'product-wizard' | 'out-stock' | 'stock-thresholds' | 'stock-reminders' | 'contacts' | 'coupons' | 'orders' | 'bulk-users' | 'bulk-products' | 'bulk-orders' | 'bulk-masters' | 'bulk-master-products' | 'admin-management';
 
 export interface Notification {
   id: number;

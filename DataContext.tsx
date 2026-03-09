@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { MainCategory, SubCategory, SubSubCategory, Filter, Product, StockOutRecord, PaymentType, Contact, Coupon, UserOrder, UserOrderItem, CouponValidationResponse, BulkUser, BulkProduct, BulkOrder, BulkBaseMaster, BulkMasterProduct, Notification } from './types';
 import { productAPI, categoriesAPI, filterAPI, orderAPI, contactsAPI, couponAPI, userOrderAPI, userAPI, authAPI, bulkProductAPI, bulkOrderAPI, bulkMasterAPI, bulkMasterProductAPI, notificationAPI } from './utils/api';
+import { useAuth } from './AuthContext';
 
 interface DataContextType {
   categories: {
@@ -44,6 +45,7 @@ interface DataContextType {
   bulkMasterProducts: BulkMasterProduct[];
   notifications: Notification[];
   totalNotifications: number;
+  admins: BulkUser[];
   actions: {
     setPage: (page: number) => void;
     setCategoryPage: (page: number) => void;
@@ -104,10 +106,12 @@ interface DataContextType {
     updateBulkMasterProduct: (id: number, data: any) => Promise<void>;
     deleteBulkMasterProduct: (id: number) => Promise<void>;
     bulkAssignMasterProducts: (userID: number, masterProductIds: number[]) => Promise<void>;
+    updateUser: (data: any) => Promise<void>;
     markNotificationAsRead: (id: number) => Promise<void>;
     markAllNotificationsAsRead: () => Promise<void>;
     deleteNotification: (id: number) => Promise<void>;
     deleteAllNotifications: () => Promise<void>;
+    createAdminUser: (userData: any) => Promise<void>;
     fetchData: () => Promise<void>;
   };
 }
@@ -133,6 +137,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [bulkMasters, setBulkMasters] = useState<BulkBaseMaster[]>([]);
   const [bulkMasterProducts, setBulkMasterProducts] = useState<BulkMasterProduct[]>([]);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [admins, setAdmins] = useState<BulkUser[]>([]);
 
   // Pagination States
   const [totalProducts, setTotalProducts] = useState(0);
@@ -158,6 +163,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [searchTerm, setSearchTerm] = useState('');
   const [userTypeFilter, setUserTypeFilter] = useState<'both' | 'retail' | 'bulk'>('both');
   const [loading, setLoading] = useState(false);
+  const { isAuthenticated } = useAuth();
 
   const getStatus = useCallback((qty: number, threshold: number = 10): 'out_of_stock' | 'in_stock' | 'backorder' | 'low_stock' => {
     if (qty === 0) return 'out_of_stock';
@@ -458,13 +464,21 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Data fetch failed", error);
     } finally {
+      try {
+        const adminRes = await userAPI.getAdminUsers();
+        setAdmins(adminRes.data.data || []);
+      } catch (err) {
+        console.error("Failed to fetch admin users", err);
+      }
       setLoading(false);
     }
   }, [currentPage, categoryPage, filterPage, orderPage, contactPage, couponPage, searchTerm, pageSize, getStatus, userTypeFilter, bulkOrderPage]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (isAuthenticated) {
+      fetchData();
+    }
+  }, [fetchData, isAuthenticated]);
 
   const actions: DataContextType['actions'] = useMemo(() => ({
     addMainCat: async (name: string) => {
@@ -1071,6 +1085,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         alert("Failed to assign products");
       }
     },
+    updateUser: async (data: any) => {
+      try {
+        await userAPI.updateUser(data);
+        await fetchData();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to update user");
+        throw e;
+      }
+    },
     updateBulkOrderStatus: async (id: number, status: string) => {
       try {
         await bulkOrderAPI.updateStatus(id, status);
@@ -1103,6 +1127,20 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await notificationAPI.deleteAllNotifications();
         setNotifications([]);
       } catch (e) { console.error(e); }
+    },
+    createAdminUser: async (userData: any) => {
+      try {
+        const payload = {
+          ...userData,
+          user_role: 'admin'
+        };
+        await authAPI.registerAdmin(payload);
+        await fetchData();
+      } catch (e) {
+        console.error(e);
+        alert("Failed to create admin user");
+        throw e;
+      }
     },
     fetchData
   }), [fetchData, products, allProducts, stockOutRecords, contacts, coupons, mainCats, allMainCats, subCats, subSubCats, filters, allFilters, bulkUsers, userTypeFilter, bulkOrders, totalBulkOrders, bulkOrderPage, bulkMasterProducts, notifications, totalNotifications]);
@@ -1145,6 +1183,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       bulkMasterProducts,
       notifications,
       totalNotifications,
+      admins,
       loading,
       actions
     }}>

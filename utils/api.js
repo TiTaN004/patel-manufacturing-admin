@@ -4,10 +4,10 @@ import axios from 'axios';
 // export const IMG_BASE_URL = 'http://patelbox.beyondadtech.com';
 // const API_BASE_URL = 'http://cheerful-scarlet-gorilla.103-212-120-132.cpanel.site/api/v1';
 // export const IMG_BASE_URL = 'http://cheerful-scarlet-gorilla.103-212-120-132.cpanel.site';
-const API_BASE_URL = 'http://192.168.1.4:3001/api/v1';
-export const IMG_BASE_URL = 'http://192.168.1.4:3001';
-// const API_BASE_URL = 'https://api.patelmanufacturing.com/api/v1';
-// export const IMG_BASE_URL = 'https://api.patelmanufacturing.com';
+// const API_BASE_URL = 'http://192.168.1.3:3001/api/v1';
+// export const IMG_BASE_URL = 'http://192.168.1.3:3001';
+const API_BASE_URL = 'https://api.patelmanufacturing.com/api/v1';
+export const IMG_BASE_URL = 'https://api.patelmanufacturing.com';
 
 
 const api = axios.create({
@@ -37,10 +37,25 @@ let failedQueue = [];
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = `Bearer ${token}`;
+
+    // Allow auth requests to pass through without a token
+    if (config.url && config.url.startsWith('/auth/')) {
+      if (token) {
+        config.headers = config.headers || {};
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
     }
+
+    // If no token, reject the request (except for auth routes)
+    if (!token) {
+      const error = new Error('Authentication required');
+      error.status = 401;
+      return Promise.reject(error);
+    }
+
+    config.headers = config.headers || {};
+    config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => {
@@ -73,6 +88,7 @@ export const authAPI = {
   verifyOtp: (email, otp) => api.post('/auth/verify-otp', { email, otp }),
   verifyToken: () => api.post('/auth/verify-token'),
   register: (userData) => api.post('/auth/register', userData),
+  registerAdmin: (userData) => api.post('/auth/register', userData),
   logout: () => api.post('/auth/logout'),
   refreshToken: () => api.post('/auth/refresh-token'),
 };
@@ -176,6 +192,8 @@ export const userAPI = {
   assignProductsToBulkUser: (data) => api.post('/user/assign-products', data),
   getBulkUserProducts: (userID) => api.get(`/user/products/${userID}`),
   bulkUpdate: (data) => api.put('/user/bulk-update', data),
+  updateUser: (data) => api.put('/user/update', data),
+  getAdminUsers: () => api.get('/user/admin-users'),
 };
 
 // Bulk Product API (Specialized Box Data)

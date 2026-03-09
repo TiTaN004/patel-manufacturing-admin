@@ -50,8 +50,10 @@ const BulkUserManager: React.FC = () => {
 
   const [editUser, setEditUser] = useState({
     fullName: '',
+    userName: '',
     emailID: '',
     mobileNo: '',
+    password: '',
     user_role: 'bulk',
     isActive: 1
   });
@@ -104,13 +106,15 @@ const BulkUserManager: React.FC = () => {
       setIsSaving(false);
     }
   };
-
   const handleEditUser = (user: any) => {
+    console.log(user);
     setSelectedUser(user);
     setEditUser({
       fullName: user.fullName,
+      userName: user.userName || '',
       emailID: user.emailID || user.email, // fallback for different property names
       mobileNo: user.mobileNo,
+      password: '', // Always empty on load
       user_role: user.user_role,
       isActive: user.isActive !== undefined ? (user.isActive ? 1 : 0) : 1
     });
@@ -121,8 +125,33 @@ const BulkUserManager: React.FC = () => {
     if (!selectedUser) return;
     setIsSaving(true);
     try {
-      await actions.bulkUpdateUsers([{ userID: selectedUser.userID, ...editUser }]);
+      // 1. Update basic info via bulkUpdateUsers
+      await actions.bulkUpdateUsers([{
+        userID: selectedUser.userID,
+        fullName: editUser.fullName,
+        emailID: editUser.emailID,
+        mobileNo: editUser.mobileNo,
+        user_role: editUser.user_role,
+        isActive: editUser.isActive
+      }]);
+
+      // 2. Update credentials via updateUser if provided
+      if (editUser.userName || editUser.password) {
+        const updatePayload: any = { userID: selectedUser.userID };
+        if (editUser.userName && editUser.userName !== selectedUser.userName) {
+          updatePayload.userName = editUser.userName;
+        }
+        if (editUser.password) {
+          updatePayload.password = editUser.password;
+        }
+
+        if (Object.keys(updatePayload).length > 1) {
+          await actions.updateUser(updatePayload);
+        }
+      }
+
       setEditModalOpen(false);
+      alert("User updated successfully");
     } catch (e) {
       console.error(e);
     } finally {
@@ -222,6 +251,7 @@ const BulkUserManager: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredUsers.length > 0 ? (
           filteredUsers.map(user => (
+            console.log(user),
             <div key={user.userID} className="bg-white rounded-[2rem] border-2 border-slate-50 p-6 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all group overflow-hidden relative">
               <div className="flex items-start gap-6">
                 <div className="h-16 w-16 rounded-[1.5rem] bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shrink-0">
@@ -440,6 +470,28 @@ const BulkUserManager: React.FC = () => {
                     value={editUser.emailID}
                     onChange={(e) => setEditUser({ ...editUser, emailID: e.target.value })}
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Username</label>
+                    <input
+                      type="text"
+                      className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700"
+                      value={editUser.userName}
+                      onChange={(e) => setEditUser({ ...editUser, userName: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">New Password (Optional)</label>
+                    <input
+                      type="password"
+                      className="w-full px-5 py-3.5 bg-slate-50 border-2 border-transparent focus:border-indigo-500 focus:bg-white rounded-2xl outline-none transition-all font-bold text-slate-700"
+                      placeholder="Leave blank to keep same"
+                      value={editUser.password}
+                      onChange={(e) => setEditUser({ ...editUser, password: e.target.value })}
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
