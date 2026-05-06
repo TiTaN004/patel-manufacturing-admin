@@ -72,7 +72,8 @@ const AppContent: React.FC = () => {
     bulkProducts,
     actions
   } = useData();
-  const [currentView, setCurrentView] = useState<ViewState>('dashboard');
+  const savedView = (localStorage.getItem('currentView') as ViewState) || 'dashboard';
+  const [currentView, setCurrentView] = useState<ViewState>(savedView);
   const [isWizardOpen, setWizardOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | undefined>(undefined);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -127,6 +128,7 @@ const AppContent: React.FC = () => {
 
   const handleNavClick = (view: ViewState) => {
     setCurrentView(view);
+    localStorage.setItem('currentView', view);
     setSidebarOpen(false);
   };
 
@@ -273,7 +275,7 @@ const AppContent: React.FC = () => {
             )}
             <div className="h-9 w-px bg-slate-200 mx-1 hidden sm:block" />
             <NotificationDropdown />
-            <button onClick={logout} className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+            <button onClick={() => logout()} className="p-2.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
               <LogOut size={20} />
             </button>
           </div>

@@ -792,7 +792,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         if (Object.keys(payload).length === 0) {
-          console.log("No changes detected, skipping update");
+          // console.log("No changes detected, skipping update");
           return;
         }
 

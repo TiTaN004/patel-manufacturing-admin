@@ -1,11 +1,8 @@
 import axios from 'axios';
 
-// const API_BASE_URL = 'http://patelbox.beyondadtech.com/api/v1';
-// export const IMG_BASE_URL = 'http://patelbox.beyondadtech.com';
-// const API_BASE_URL = 'http://cheerful-scarlet-gorilla.103-212-120-132.cpanel.site/api/v1';
-// export const IMG_BASE_URL = 'http://cheerful-scarlet-gorilla.103-212-120-132.cpanel.site';
-// const API_BASE_URL = 'http://192.168.1.3:3001/api/v1';
-// export const IMG_BASE_URL = 'http://192.168.1.3:3001';
+// const API_BASE_URL = 'http://localhost:3001/api/v1';
+// export const IMG_BASE_URL = 'http://localhost:3000';
+
 const API_BASE_URL = 'https://api.patelmanufacturing.com/api/v1';
 export const IMG_BASE_URL = 'https://api.patelmanufacturing.com';
 
@@ -22,26 +19,57 @@ const api = axios.create({
 let isRefreshing = false;
 let failedQueue = [];
 
-// const processQueue = (error, token = null) => {
-//   failedQueue.forEach(prom => {
-//     if (error) {
-//       prom.reject(error);
-//     } else {
-//       prom.resolve(token);
-//     }
-//   });
-//   failedQueue = [];
-// };
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
 
-// Add token to requests
+const getDeviceInfo = () => {
+  if (typeof navigator === 'undefined') return 'Web Admin Panel';
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/.test(ua)) return 'iOS App';
+  if (/Android/.test(ua)) return 'Android App';
+  if (/Chrome/.test(ua)) return 'Chrome on MacOS';
+  if (/Firefox/.test(ua)) return 'Firefox on MacOS';
+  if (/Safari/.test(ua)) return 'Safari on MacOS';
+  return 'Web Admin Panel';
+};
+
+const getTokenExpiry = (token) => {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return payload.exp * 1000;
+  } catch {
+    return 0;
+  }
+};
+
+const shouldRefreshToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return false;
+  const exp = getTokenExpiry(token);
+  const hoursUntilExpiry = (exp - Date.now()) / (1000 * 60 * 60);
+  return hoursUntilExpiry < 1;
+};
+
+// Add token and device info to requests
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
 
+    // Inject X-Device-Info header
+    config.headers = config.headers || {};
+    config.headers['X-Device-Info'] = getDeviceInfo();
+
     // Allow auth requests to pass through without a token
     if (config.url && config.url.startsWith('/auth/')) {
       if (token) {
-        config.headers = config.headers || {};
         config.headers.Authorization = `Bearer ${token}`;
       }
       return config;
@@ -54,7 +82,6 @@ api.interceptors.request.use(
       return Promise.reject(error);
     }
 
-    config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
@@ -74,7 +101,54 @@ api.interceptors.response.use(
       error.message = error.response.data.message;
     }
 
-    // ... original error handling logic could go here if needed ...
+    // Handle 401 - try to refresh token
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken && !isRefreshing) {
+        isRefreshing = true;
+
+        try {
+          const response = await api.post('/auth/refresh', { refreshToken });
+          const data = response.data;
+
+          if (data.success && data.data && data.data[0]) {
+            const newToken = data.data[0].token;
+            const newRefreshToken = data.data[0].refreshToken;
+
+            localStorage.setItem('token', newToken);
+            localStorage.setItem('refreshToken', newRefreshToken);
+
+            processQueue(null, newToken);
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            isRefreshing = false;
+            return api(originalRequest);
+          } else {
+            processQueue(new Error('Token refresh failed'), null);
+            localStorage.removeItem('token');
+            localStorage.removeItem('refreshToken');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            isRefreshing = false;
+            return Promise.reject(error);
+          }
+        } catch (refreshError) {
+          processQueue(refreshError, null);
+          localStorage.removeItem('token');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          isRefreshing = false;
+          return Promise.reject(refreshError);
+        }
+      }
+
+      // Queue the failed request for retry after refresh
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      });
+    }
 
     return Promise.reject(error);
   }
@@ -83,14 +157,12 @@ api.interceptors.response.use(
 // Auth API
 export const authAPI = {
   login: (credentials) => api.post('/auth/login', credentials),
-  getValidEmails: () => api.get('/auth/valid-emails'),
-  sendOtp: (email) => api.post('/auth/send-otp', { email }),
-  verifyOtp: (email, otp) => api.post('/auth/verify-otp', { email, otp }),
-  verifyToken: () => api.post('/auth/verify-token'),
+  refreshToken: (refreshToken) => api.post('/auth/refresh', { refreshToken }),
+  logout: (refreshToken) => api.post('/auth/logout', { refreshToken }),
+  getSessions: () => api.get('/auth/sessions'),
+  revokeSession: (id) => api.delete(`/auth/sessions/${id}`),
+  revokeAllSessions: () => api.delete('/auth/sessions/all'),
   register: (userData) => api.post('/auth/register', userData),
-  registerAdmin: (userData) => api.post('/auth/register', userData),
-  logout: () => api.post('/auth/logout'),
-  refreshToken: () => api.post('/auth/refresh-token'),
 };
 
 // product API

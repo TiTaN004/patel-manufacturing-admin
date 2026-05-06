@@ -107,7 +107,7 @@ const BulkUserManager: React.FC = () => {
     }
   };
   const handleEditUser = (user: any) => {
-    console.log(user);
+    // console.log(user);
     setSelectedUser(user);
     setEditUser({
       fullName: user.fullName,
@@ -251,7 +251,7 @@ const BulkUserManager: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {filteredUsers.length > 0 ? (
           filteredUsers.map(user => (
-            console.log(user),
+            // console.log(user),
             <div key={user.userID} className="bg-white rounded-[2rem] border-2 border-slate-50 p-6 shadow-sm hover:shadow-xl hover:border-indigo-100 transition-all group overflow-hidden relative">
               <div className="flex items-start gap-6">
                 <div className="h-16 w-16 rounded-[1.5rem] bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-indigo-50 group-hover:text-indigo-600 transition-colors shrink-0">
